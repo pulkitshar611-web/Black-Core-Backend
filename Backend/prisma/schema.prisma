@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model alertlog {
+model AlertLog {
   id        Int        @id @default(autoincrement())
   ruleId    Int?
   channel   String
@@ -17,12 +17,13 @@ model alertlog {
   errorMsg  String?
   sentAt    DateTime?
   createdAt DateTime   @default(now())
-  alertrule alertrule? @relation(fields: [ruleId], references: [id], map: "AlertLog_ruleId_fkey")
+  alertRule AlertRule? @relation(fields: [ruleId], references: [id], map: "AlertLog_ruleId_fkey")
 
   @@index([ruleId], map: "AlertLog_ruleId_fkey")
+  @@map("alertlog")
 }
 
-model alertrule {
+model AlertRule {
   id         Int        @id @default(autoincrement())
   name       String
   trigger    String
@@ -31,11 +32,13 @@ model alertrule {
   isEnabled  Boolean    @default(true)
   redundancy Boolean    @default(false)
   createdAt  DateTime   @default(now())
-  updatedAt  DateTime
-  alertlog   alertlog[]
+  updatedAt  DateTime   @updatedAt
+  alertLogs  AlertLog[]
+
+  @@map("alertrule")
 }
 
-model auditlog {
+model AuditLog {
   id        Int      @id @default(autoincrement())
   userId    Int?
   action    String
@@ -44,12 +47,13 @@ model auditlog {
   details   String?  @db.Text
   ipAddress String?
   createdAt DateTime @default(now())
-  user      user?    @relation(fields: [userId], references: [id], map: "AuditLog_userId_fkey")
+  user      User?    @relation(fields: [userId], references: [id], map: "AuditLog_userId_fkey")
 
   @@index([userId], map: "AuditLog_userId_fkey")
+  @@map("auditlog")
 }
 
-model backupsnapshot {
+model BackupSnapshot {
   id        Int      @id @default(autoincrement())
   filename  String
   filePath  String
@@ -57,52 +61,59 @@ model backupsnapshot {
   status    String   @default("completed")
   notes     String?
   createdAt DateTime @default(now())
+
+  @@map("backupsnapshot")
 }
 
-model energyreading {
+model EnergyReading {
   id          Int      @id @default(autoincrement())
   currentKw   Float
   maxKw       Float
   activeCount Int      @default(0)
   source      String   @default("calculated")
   recordedAt  DateTime @default(now())
+
+  @@map("energyreading")
 }
 
-model energysettings {
+model EnergySettings {
   id               Int      @id @default(1)
   maxLoadKw        Float    @default(6)
   peakProtection   Boolean  @default(true)
   warmupStaggering Boolean  @default(true)
   staggerDelayMin  Int      @default(5)
   baseLoadKw       Float    @default(1.2)
-  updatedAt        DateTime
+  updatedAt        DateTime @updatedAt
+
+  @@map("energysettings")
 }
 
-model job {
-  id            Int        @id @default(autoincrement())
-  jobCode       String     @unique(map: "Job_jobCode_key")
+model Job {
+  id            Int            @id @default(autoincrement())
+  jobCode       String         @unique(map: "Job_jobCode_key")
   name          String
-  status        String     @default("queued")
-  priority      String     @default("medium")
-  material      String     @default("PLA")
-  weightGrams   Float      @default(0)
-  estimatedTime Int        @default(0)
+  status        String         @default("queued")
+  priority      String         @default("medium")
+  material      String         @default("PLA")
+  weightGrams   Float          @default(0)
+  estimatedTime Int            @default(0)
   actualTime    Int?
   printerId     Int?
   orderId       Int?
   startedAt     DateTime?
   completedAt   DateTime?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime
-  order         order?     @relation(fields: [orderId], references: [id], map: "Job_orderId_fkey")
-  printer       printer?   @relation(fields: [printerId], references: [id], map: "Job_printerId_fkey")
-  queueitem     queueitem?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  order         Order?         @relation(fields: [orderId], references: [id], map: "Job_orderId_fkey")
+  printer       Printer?       @relation(fields: [printerId], references: [id], map: "Job_printerId_fkey")
+  queueItem     QueueItem?
 
   @@index([orderId], map: "Job_orderId_fkey")
   @@index([printerId], map: "Job_printerId_fkey")
+  @@map("job")
 }
 
-model labelprintlog {
+model LabelPrintLog {
   id           Int       @id @default(autoincrement())
   orderId      Int?
   templateId   Int?
@@ -112,12 +123,13 @@ model labelprintlog {
   printedAt    DateTime?
   errorMsg     String?
   createdAt    DateTime  @default(now())
-  order        order?    @relation(fields: [orderId], references: [id], map: "LabelPrintLog_orderId_fkey")
+  order        Order?    @relation(fields: [orderId], references: [id], map: "LabelPrintLog_orderId_fkey")
 
   @@index([orderId], map: "LabelPrintLog_orderId_fkey")
+  @@map("labelprintlog")
 }
 
-model labeltemplate {
+model LabelTemplate {
   id          Int      @id @default(autoincrement())
   name        String   @unique(map: "LabelTemplate_name_key")
   description String?  @db.Text
@@ -126,10 +138,12 @@ model labeltemplate {
   height      String   @default("6")
   isDefault   Boolean  @default(false)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime @updatedAt
+
+  @@map("labeltemplate")
 }
 
-model marketplaceintegration {
+model MarketplaceIntegration {
   id                 Int                  @id @default(autoincrement())
   name               String               @unique(map: "MarketplaceIntegration_name_key")
   displayName        String
@@ -141,23 +155,26 @@ model marketplaceintegration {
   lastSyncAt         DateTime?
   status             String               @default("offline")
   createdAt          DateTime             @default(now())
-  updatedAt          DateTime
-  marketplacesynclog marketplacesynclog[]
+  updatedAt          DateTime             @updatedAt
+  marketplaceSyncLogs MarketplaceSyncLog[]
+
+  @@map("marketplaceintegration")
 }
 
-model marketplacesynclog {
+model MarketplaceSyncLog {
   id                     Int                    @id @default(autoincrement())
   integrationId          Int
   result                 String
   ordersFound            Int                    @default(0)
   message                String?
   createdAt              DateTime               @default(now())
-  marketplaceintegration marketplaceintegration @relation(fields: [integrationId], references: [id], onDelete: NoAction, map: "MarketplaceSyncLog_integrationId_fkey")
+  marketplaceIntegration MarketplaceIntegration @relation(fields: [integrationId], references: [id], onDelete: NoAction, map: "MarketplaceSyncLog_integrationId_fkey")
 
   @@index([integrationId], map: "MarketplaceSyncLog_integrationId_fkey")
+  @@map("marketplacesynclog")
 }
 
-model order {
+model Order {
   id                Int              @id @default(autoincrement())
   orderId           String           @unique(map: "Order_orderId_key")
   marketplaceSource String           @default("manual")
@@ -172,13 +189,15 @@ model order {
   notes             String?          @db.Text
   rawPayload        String?          @db.LongText
   createdAt         DateTime         @default(now())
-  updatedAt         DateTime
-  job               job[]
-  labelprintlog     labelprintlog[]
-  orderstatuslog    orderstatuslog[]
+  updatedAt         DateTime         @updatedAt
+  jobs              Job[]
+  labelPrintLogs    LabelPrintLog[]
+  orderStatusLogs   OrderStatusLog[]
+
+  @@map("order")
 }
 
-model orderstatuslog {
+model OrderStatusLog {
   id         Int      @id @default(autoincrement())
   orderId    Int
   fromStatus String?
@@ -186,21 +205,24 @@ model orderstatuslog {
   actor      String   @default("system")
   reason     String?
   createdAt  DateTime @default(now())
-  order      order    @relation(fields: [orderId], references: [id], onDelete: NoAction, map: "OrderStatusLog_orderId_fkey")
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: NoAction, map: "OrderStatusLog_orderId_fkey")
 
   @@index([orderId], map: "OrderStatusLog_orderId_fkey")
+  @@map("orderstatuslog")
 }
 
-model powerevent {
+model PowerEvent {
   id        Int      @id @default(autoincrement())
   type      String
   currentKw Float
   limitKw   Float
   action    String?
   createdAt DateTime @default(now())
+
+  @@map("powerevent")
 }
 
-model printer {
+model Printer {
   id               Int                @id @default(autoincrement())
   name             String             @unique(map: "Printer_name_key")
   ipAddress        String
@@ -212,26 +234,29 @@ model printer {
   maxTempBed       Float              @default(110)
   energyRating     Float              @default(0.4)
   createdAt        DateTime           @default(now())
-  updatedAt        DateTime
-  job              job[]
-  printerevent     printerevent[]
-  printertelemetry printertelemetry[]
-  queueitem        queueitem[]
+  updatedAt        DateTime           @updatedAt
+  jobs             Job[]
+  printerEvents    PrinterEvent[]
+  printerTelemetries PrinterTelemetry[]
+  queueItems       QueueItem[]
+
+  @@map("printer")
 }
 
-model printerevent {
+model PrinterEvent {
   id        Int      @id @default(autoincrement())
   printerId Int
   level     String
   code      String?
   message   String
   createdAt DateTime @default(now())
-  printer   printer  @relation(fields: [printerId], references: [id], onDelete: NoAction, map: "PrinterEvent_printerId_fkey")
+  printer   Printer  @relation(fields: [printerId], references: [id], onDelete: NoAction, map: "PrinterEvent_printerId_fkey")
 
   @@index([printerId], map: "PrinterEvent_printerId_fkey")
+  @@map("printerevent")
 }
 
-model printertelemetry {
+model PrinterTelemetry {
   id              Int      @id @default(autoincrement())
   printerId       Int
   extruderTemp    Float    @default(0)
@@ -246,22 +271,25 @@ model printertelemetry {
   posY            Float    @default(0)
   posZ            Float    @default(0)
   recordedAt      DateTime @default(now())
-  printer         printer  @relation(fields: [printerId], references: [id], onDelete: NoAction, map: "PrinterTelemetry_printerId_fkey")
+  printer         Printer  @relation(fields: [printerId], references: [id], onDelete: NoAction, map: "PrinterTelemetry_printerId_fkey")
 
   @@index([printerId], map: "PrinterTelemetry_printerId_fkey")
+  @@map("printertelemetry")
 }
 
-model profitconfig {
+model ProfitConfig {
   id                  Int      @id @default(1)
   materialCostPerGram Float    @default(0.025)
   energyCostPerKwh    Float    @default(0.28)
   depreciationPerHour Float    @default(0.15)
   minMarginPercent    Float    @default(20)
   laborCostPerHour    Float    @default(0)
-  updatedAt           DateTime
+  updatedAt           DateTime @updatedAt
+
+  @@map("profitconfig")
 }
 
-model queueitem {
+model QueueItem {
   id          Int      @id @default(autoincrement())
   jobId       Int      @unique(map: "QueueItem_jobId_key")
   printerId   Int?
@@ -270,36 +298,40 @@ model queueitem {
   blockReason String?
   position    Int      @default(0)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime
-  job         job      @relation(fields: [jobId], references: [id], onDelete: NoAction, map: "QueueItem_jobId_fkey")
-  printer     printer? @relation(fields: [printerId], references: [id], map: "QueueItem_printerId_fkey")
+  updatedAt   DateTime @updatedAt
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: NoAction, map: "QueueItem_jobId_fkey")
+  printer     Printer? @relation(fields: [printerId], references: [id], map: "QueueItem_printerId_fkey")
 
   @@index([printerId], map: "QueueItem_printerId_fkey")
+  @@map("queueitem")
 }
 
-model securitysettings {
+model SecuritySettings {
   id                 Int      @id @default(1)
   ipWhitelistEnabled Boolean  @default(false)
   ipWhitelist        String   @db.Text
   sessionTimeoutMin  Int      @default(480)
   twoFaEnforced      Boolean  @default(false)
   maxLoginAttempts   Int      @default(5)
-  updatedAt          DateTime
+  updatedAt          DateTime @updatedAt
+
+  @@map("securitysettings")
 }
 
-model session {
+model Session {
   id        Int       @id @default(autoincrement())
   token     String    @unique(map: "Session_token_key")
   userId    Int
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
-  user      user      @relation(fields: [userId], references: [id], onDelete: NoAction, map: "Session_userId_fkey")
+  user      User      @relation(fields: [userId], references: [id], onDelete: NoAction, map: "Session_userId_fkey")
 
   @@index([userId], map: "Session_userId_fkey")
+  @@map("session")
 }
 
-model user {
+model User {
   id           Int        @id @default(autoincrement())
   email        String     @unique(map: "User_email_key")
   passwordHash String
@@ -309,7 +341,11 @@ model user {
   twoFaEnabled Boolean    @default(false)
   isActive     Boolean    @default(true)
   createdAt    DateTime   @default(now())
-  updatedAt    DateTime
-  auditlog     auditlog[]
-  session      session[]
+  updatedAt    DateTime   @updatedAt
+  auditLogs    AuditLog[]
+  sessions     Session[]
+
+  @@map("user")
 }
+
+
