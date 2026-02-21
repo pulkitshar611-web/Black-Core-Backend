@@ -208,6 +208,8 @@ model PowerEvent {
   limitKw     Float
   action      String?
   createdAt   DateTime @default(now())
+  @@map("powerevent")
+
 }
 
 // ─── PROFITABILITY ────────────────────────────────────────────
@@ -220,6 +222,8 @@ model ProfitConfig {
   minMarginPercent      Float    @default(20.0)   // minimum profit margin %
   laborCostPerHour      Float    @default(0.0)    // optional
   updatedAt             DateTime @updatedAt
+  @@map("profitconfig")
+
 }
 
 // ─── MARKETPLACES ─────────────────────────────────────────────
@@ -239,6 +243,8 @@ model MarketplaceIntegration {
   updatedAt       DateTime @updatedAt
 
   syncLogs MarketplaceSyncLog[]
+  @@map("marketplaceintegration")
+
 }
 
 model MarketplaceSyncLog {
