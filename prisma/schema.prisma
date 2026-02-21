@@ -81,6 +81,7 @@ model PrinterTelemetry {
   posY            Float    @default(0)
   posZ            Float    @default(0)
   recordedAt      DateTime @default(now())
+  @@map("printertelemetry")
 }
 
 model PrinterEvent {
@@ -91,6 +92,7 @@ model PrinterEvent {
   code        String?  // FILAMENT_RUNOUT | THERMAL_RUNAWAY | etc.
   message     String
   createdAt   DateTime @default(now())
+  @@map("printerevent")
 }
 
 // ─── JOBS & QUEUE ─────────────────────────────────────────────
@@ -115,6 +117,8 @@ model Job {
   updatedAt     DateTime @updatedAt
 
   queueItem     QueueItem?
+  @@map("job")
+
 }
 
 model QueueItem {
