@@ -133,6 +133,8 @@ model QueueItem {
   position    Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  @@map("queueitem")
+
 }
 
 // ─── ORDERS ──────────────────────────────────────────────────
@@ -157,6 +159,8 @@ model Order {
   statusLogs       OrderStatusLog[]
   jobs             Job[]
   labels           LabelPrintLog[]
+  @@map("order")
+
 }
 
 model OrderStatusLog {
@@ -168,6 +172,8 @@ model OrderStatusLog {
   actor      String   @default("system") // email or "system"
   reason     String?
   createdAt  DateTime @default(now())
+  @@map("orderstatuslog")
+
 }
 
 // ─── ENERGY ───────────────────────────────────────────────────
