@@ -15,16 +15,30 @@ const prisma = new PrismaClient();
 // ─── Socket.io Setup ─────────────────────────────────────────
 const allowedOrigins = [
     'http://localhost:5173',
+    'http://localhost:3000',
     'https://blackcore.kiaantechnology.com',
     'http://blackcore.kiaantechnology.com',
 ];
-if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
+
+if (process.env.FRONTEND_URL) {
+    allowedOrigins.push(process.env.FRONTEND_URL.replace(/\/$/, ""));
+}
+
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(null, false);
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+};
 
 const io = new Server(server, {
-    cors: {
-        origin: allowedOrigins,
-        methods: ['GET', 'POST'],
-    },
+    cors: corsOptions,
 });
 
 // Make io accessible in routes
@@ -32,11 +46,10 @@ app.set('io', io);
 app.set('prisma', prisma);
 
 // ─── Middleware ───────────────────────────────────────────────
-app.use(helmet());
-app.use(cors({
-    origin: allowedOrigins,
-    credentials: true,
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('dev'));
 
