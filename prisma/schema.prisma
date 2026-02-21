@@ -255,6 +255,8 @@ model MarketplaceSyncLog {
   ordersFound     Int      @default(0)
   message         String?
   createdAt       DateTime @default(now())
+  @@map("marketplacesynclog")
+
 }
 
 // ─── LABELS ──────────────────────────────────────────────────
@@ -269,6 +271,8 @@ model LabelTemplate {
   isDefault   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  @@map("labeltemplate")
+
 }
 
 model LabelPrintLog {
@@ -282,6 +286,8 @@ model LabelPrintLog {
   printedAt   DateTime?
   errorMsg    String?
   createdAt   DateTime @default(now())
+  @@map("labelprintlog")
+
 }
 
 // ─── ALERTS ──────────────────────────────────────────────────
@@ -298,6 +304,8 @@ model AlertRule {
   updatedAt   DateTime @updatedAt
 
   logs AlertLog[]
+  @@map("alertrule")
+
 }
 
 model AlertLog {
@@ -311,6 +319,8 @@ model AlertLog {
   errorMsg    String?
   sentAt      DateTime?
   createdAt   DateTime @default(now())
+  @@map("alertlog")
+
 }
 
 // ─── BACKUP ──────────────────────────────────────────────────
@@ -323,6 +333,8 @@ model BackupSnapshot {
   status      String   @default("completed") // completed|failed|restoring
   notes       String?
   createdAt   DateTime @default(now())
+  @@map("backupsnapshot")
+
 }
 
 // ─── SECURITY ────────────────────────────────────────────────
