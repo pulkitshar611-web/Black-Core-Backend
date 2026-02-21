@@ -26,6 +26,8 @@ model User {
 
   sessions   Session[]
   auditLogs  AuditLog[]
+  @@map("user")
+
 }
 
 model Session {
