@@ -38,6 +38,8 @@ model Session {
   expiresAt   DateTime
   revokedAt   DateTime?
   createdAt   DateTime @default(now())
+  @@map("session")
+
 }
 
 // ─── PRINTERS ────────────────────────────────────────────────
