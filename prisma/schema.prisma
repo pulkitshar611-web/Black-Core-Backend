@@ -62,6 +62,7 @@ model Printer {
   events      PrinterEvent[]
   jobs        Job[]
   queueItems  QueueItem[]
+  @@map("printer")
 }
 
 model PrinterTelemetry {
