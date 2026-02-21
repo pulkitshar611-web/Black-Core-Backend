@@ -186,6 +186,8 @@ model EnergySettings {
   staggerDelayMin  Int      @default(5)    // minutes between warmups
   baseLoadKw       Float    @default(1.2)  // lights, HVAC, server
   updatedAt        DateTime @updatedAt
+  @@map("energysettings")
+
 }
 
 model EnergyReading {
@@ -195,6 +197,8 @@ model EnergyReading {
   activeCount Int      @default(0)
   source      String   @default("calculated") // modbus|calculated
   recordedAt  DateTime @default(now())
+  @@map("energyreading")
+
 }
 
 model PowerEvent {
