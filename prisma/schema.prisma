@@ -346,7 +346,9 @@ model SecuritySettings {
   sessionTimeoutMin  Int     @default(480)   // 8 hours
   twoFaEnforced      Boolean @default(false)
   maxLoginAttempts   Int     @default(5)
-  updatedAt          DateTime @updatedAt
+  updatedAt          DateTime @updatedAt 
+  @@map("securitysettings")
+
 }
 
 // ─── AUDIT LOG ────────────────────────────────────────────────
@@ -361,4 +363,6 @@ model AuditLog {
   details     String?  @db.Text
   ipAddress   String?
   createdAt   DateTime @default(now())
+  @@map("auditlog")
+
 }
