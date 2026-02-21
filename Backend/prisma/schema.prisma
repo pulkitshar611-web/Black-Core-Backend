@@ -1,0 +1,315 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model alertlog {
+  id        Int        @id @default(autoincrement())
+  ruleId    Int?
+  channel   String
+  recipient String?
+  message   String     @db.Text
+  status    String     @default("pending")
+  errorMsg  String?
+  sentAt    DateTime?
+  createdAt DateTime   @default(now())
+  alertrule alertrule? @relation(fields: [ruleId], references: [id], map: "AlertLog_ruleId_fkey")
+
+  @@index([ruleId], map: "AlertLog_ruleId_fkey")
+}
+
+model alertrule {
+  id         Int        @id @default(autoincrement())
+  name       String
+  trigger    String
+  severity   String
+  channel    String
+  isEnabled  Boolean    @default(true)
+  redundancy Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime
+  alertlog   alertlog[]
+}
+
+model auditlog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String
+  entity    String?
+  entityId  String?
+  details   String?  @db.Text
+  ipAddress String?
+  createdAt DateTime @default(now())
+  user      user?    @relation(fields: [userId], references: [id], map: "AuditLog_userId_fkey")
+
+  @@index([userId], map: "AuditLog_userId_fkey")
+}
+
+model backupsnapshot {
+  id        Int      @id @default(autoincrement())
+  filename  String
+  filePath  String
+  sizeBytes Int      @default(0)
+  status    String   @default("completed")
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model energyreading {
+  id          Int      @id @default(autoincrement())
+  currentKw   Float
+  maxKw       Float
+  activeCount Int      @default(0)
+  source      String   @default("calculated")
+  recordedAt  DateTime @default(now())
+}
+
+model energysettings {
+  id               Int      @id @default(1)
+  maxLoadKw        Float    @default(6)
+  peakProtection   Boolean  @default(true)
+  warmupStaggering Boolean  @default(true)
+  staggerDelayMin  Int      @default(5)
+  baseLoadKw       Float    @default(1.2)
+  updatedAt        DateTime
+}
+
+model job {
+  id            Int        @id @default(autoincrement())
+  jobCode       String     @unique(map: "Job_jobCode_key")
+  name          String
+  status        String     @default("queued")
+  priority      String     @default("medium")
+  material      String     @default("PLA")
+  weightGrams   Float      @default(0)
+  estimatedTime Int        @default(0)
+  actualTime    Int?
+  printerId     Int?
+  orderId       Int?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime
+  order         order?     @relation(fields: [orderId], references: [id], map: "Job_orderId_fkey")
+  printer       printer?   @relation(fields: [printerId], references: [id], map: "Job_printerId_fkey")
+  queueitem     queueitem?
+
+  @@index([orderId], map: "Job_orderId_fkey")
+  @@index([printerId], map: "Job_printerId_fkey")
+}
+
+model labelprintlog {
+  id           Int       @id @default(autoincrement())
+  orderId      Int?
+  templateId   Int?
+  zplGenerated String    @db.LongText
+  printerIp    String
+  status       String    @default("pending")
+  printedAt    DateTime?
+  errorMsg     String?
+  createdAt    DateTime  @default(now())
+  order        order?    @relation(fields: [orderId], references: [id], map: "LabelPrintLog_orderId_fkey")
+
+  @@index([orderId], map: "LabelPrintLog_orderId_fkey")
+}
+
+model labeltemplate {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique(map: "LabelTemplate_name_key")
+  description String?  @db.Text
+  zplContent  String   @db.LongText
+  width       String   @default("4")
+  height      String   @default("6")
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+}
+
+model marketplaceintegration {
+  id                 Int                  @id @default(autoincrement())
+  name               String               @unique(map: "MarketplaceIntegration_name_key")
+  displayName        String
+  isEnabled          Boolean              @default(false)
+  apiKey             String?
+  apiSecret          String?
+  apiUrl             String?
+  pollIntervalSec    Int                  @default(60)
+  lastSyncAt         DateTime?
+  status             String               @default("offline")
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  marketplacesynclog marketplacesynclog[]
+}
+
+model marketplacesynclog {
+  id                     Int                    @id @default(autoincrement())
+  integrationId          Int
+  result                 String
+  ordersFound            Int                    @default(0)
+  message                String?
+  createdAt              DateTime               @default(now())
+  marketplaceintegration marketplaceintegration @relation(fields: [integrationId], references: [id], onDelete: NoAction, map: "MarketplaceSyncLog_integrationId_fkey")
+
+  @@index([integrationId], map: "MarketplaceSyncLog_integrationId_fkey")
+}
+
+model order {
+  id                Int              @id @default(autoincrement())
+  orderId           String           @unique(map: "Order_orderId_key")
+  marketplaceSource String           @default("manual")
+  externalId        String?          @unique(map: "Order_externalId_key")
+  customerName      String
+  customerEmail     String?
+  items             Int              @default(1)
+  totalValue        Float            @default(0)
+  currency          String           @default("EUR")
+  status            String           @default("incoming")
+  profitScore       Float?
+  notes             String?          @db.Text
+  rawPayload        String?          @db.LongText
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime
+  job               job[]
+  labelprintlog     labelprintlog[]
+  orderstatuslog    orderstatuslog[]
+}
+
+model orderstatuslog {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  fromStatus String?
+  toStatus   String
+  actor      String   @default("system")
+  reason     String?
+  createdAt  DateTime @default(now())
+  order      order    @relation(fields: [orderId], references: [id], onDelete: NoAction, map: "OrderStatusLog_orderId_fkey")
+
+  @@index([orderId], map: "OrderStatusLog_orderId_fkey")
+}
+
+model powerevent {
+  id        Int      @id @default(autoincrement())
+  type      String
+  currentKw Float
+  limitKw   Float
+  action    String?
+  createdAt DateTime @default(now())
+}
+
+model printer {
+  id               Int                @id @default(autoincrement())
+  name             String             @unique(map: "Printer_name_key")
+  ipAddress        String
+  port             Int                @default(80)
+  firmware         String             @default("unknown")
+  model            String             @default("Generic")
+  isActive         Boolean            @default(true)
+  maxTempExtruder  Float              @default(260)
+  maxTempBed       Float              @default(110)
+  energyRating     Float              @default(0.4)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime
+  job              job[]
+  printerevent     printerevent[]
+  printertelemetry printertelemetry[]
+  queueitem        queueitem[]
+}
+
+model printerevent {
+  id        Int      @id @default(autoincrement())
+  printerId Int
+  level     String
+  code      String?
+  message   String
+  createdAt DateTime @default(now())
+  printer   printer  @relation(fields: [printerId], references: [id], onDelete: NoAction, map: "PrinterEvent_printerId_fkey")
+
+  @@index([printerId], map: "PrinterEvent_printerId_fkey")
+}
+
+model printertelemetry {
+  id              Int      @id @default(autoincrement())
+  printerId       Int
+  extruderTemp    Float    @default(0)
+  bedTemp         Float    @default(0)
+  chamberTemp     Float    @default(0)
+  progress        Float    @default(0)
+  energyDraw      Float    @default(0)
+  status          String   @default("idle")
+  filamentPresent Boolean  @default(true)
+  fanRpm          Int      @default(0)
+  posX            Float    @default(0)
+  posY            Float    @default(0)
+  posZ            Float    @default(0)
+  recordedAt      DateTime @default(now())
+  printer         printer  @relation(fields: [printerId], references: [id], onDelete: NoAction, map: "PrinterTelemetry_printerId_fkey")
+
+  @@index([printerId], map: "PrinterTelemetry_printerId_fkey")
+}
+
+model profitconfig {
+  id                  Int      @id @default(1)
+  materialCostPerGram Float    @default(0.025)
+  energyCostPerKwh    Float    @default(0.28)
+  depreciationPerHour Float    @default(0.15)
+  minMarginPercent    Float    @default(20)
+  laborCostPerHour    Float    @default(0)
+  updatedAt           DateTime
+}
+
+model queueitem {
+  id          Int      @id @default(autoincrement())
+  jobId       Int      @unique(map: "QueueItem_jobId_key")
+  printerId   Int?
+  priority    Int      @default(5)
+  status      String   @default("queued")
+  blockReason String?
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  job         job      @relation(fields: [jobId], references: [id], onDelete: NoAction, map: "QueueItem_jobId_fkey")
+  printer     printer? @relation(fields: [printerId], references: [id], map: "QueueItem_printerId_fkey")
+
+  @@index([printerId], map: "QueueItem_printerId_fkey")
+}
+
+model securitysettings {
+  id                 Int      @id @default(1)
+  ipWhitelistEnabled Boolean  @default(false)
+  ipWhitelist        String   @db.Text
+  sessionTimeoutMin  Int      @default(480)
+  twoFaEnforced      Boolean  @default(false)
+  maxLoginAttempts   Int      @default(5)
+  updatedAt          DateTime
+}
+
+model session {
+  id        Int       @id @default(autoincrement())
+  token     String    @unique(map: "Session_token_key")
+  userId    Int
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      user      @relation(fields: [userId], references: [id], onDelete: NoAction, map: "Session_userId_fkey")
+
+  @@index([userId], map: "Session_userId_fkey")
+}
+
+model user {
+  id           Int        @id @default(autoincrement())
+  email        String     @unique(map: "User_email_key")
+  passwordHash String
+  name         String
+  role         String     @default("operator")
+  twoFaSecret  String?    @db.Text
+  twoFaEnabled Boolean    @default(false)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime
+  auditlog     auditlog[]
+  session      session[]
+}
