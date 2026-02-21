@@ -13,9 +13,15 @@ const server = http.createServer(app);
 const prisma = new PrismaClient();
 
 // ─── Socket.io Setup ─────────────────────────────────────────
+const allowedOrigins = [
+    'http://localhost:5173',
+    'https://blackcore.kiaantechnology.com'
+];
+if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
+
 const io = new Server(server, {
     cors: {
-        origin: process.env.FRONTEND_URL || 'http://localhost:5173' || "https://blackcore.kiaantechnology.com",
+        origin: allowedOrigins,
         methods: ['GET', 'POST'],
     },
 });
@@ -27,7 +33,7 @@ app.set('prisma', prisma);
 // ─── Middleware ───────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: allowedOrigins,
     credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
