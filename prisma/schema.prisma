@@ -1,0 +1,327 @@
+// BLACK CORE — Prisma Database Schema
+// MySQL — Production database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── AUTH & USERS ────────────────────────────────────────────
+
+model User {
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  role          String   @default("operator")
+  twoFaSecret   String?  @db.Text
+  twoFaEnabled  Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions   Session[]
+  auditLogs  AuditLog[]
+}
+
+model Session {
+  id          Int      @id @default(autoincrement())
+  token       String   @unique
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id])
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// ─── PRINTERS ────────────────────────────────────────────────
+
+model Printer {
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  ipAddress      String
+  port           Int      @default(80)
+  firmware       String   @default("unknown")
+  model          String   @default("Generic")
+  isActive       Boolean  @default(true)
+  maxTempExtruder Float   @default(260)
+  maxTempBed      Float   @default(110)
+  energyRating    Float   @default(0.4)  // kW per hour
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  telemetry   PrinterTelemetry[]
+  events      PrinterEvent[]
+  jobs        Job[]
+  queueItems  QueueItem[]
+}
+
+model PrinterTelemetry {
+  id              Int      @id @default(autoincrement())
+  printerId       Int
+  printer         Printer  @relation(fields: [printerId], references: [id])
+  extruderTemp    Float    @default(0)
+  bedTemp         Float    @default(0)
+  chamberTemp     Float    @default(0)
+  progress        Float    @default(0)   // 0-100%
+  energyDraw      Float    @default(0)   // kW
+  status          String   @default("idle") // idle|printing|paused|error|maintenance|offline
+  filamentPresent Boolean  @default(true)
+  fanRpm          Int      @default(0)
+  posX            Float    @default(0)
+  posY            Float    @default(0)
+  posZ            Float    @default(0)
+  recordedAt      DateTime @default(now())
+}
+
+model PrinterEvent {
+  id          Int      @id @default(autoincrement())
+  printerId   Int
+  printer     Printer  @relation(fields: [printerId], references: [id])
+  level       String   // INFO | WARN | ERROR | CRITICAL
+  code        String?  // FILAMENT_RUNOUT | THERMAL_RUNAWAY | etc.
+  message     String
+  createdAt   DateTime @default(now())
+}
+
+// ─── JOBS & QUEUE ─────────────────────────────────────────────
+
+model Job {
+  id            Int      @id @default(autoincrement())
+  jobCode       String   @unique  // JOB-XXXX
+  name          String
+  status        String   @default("queued") // queued|printing|paused|completed|failed|cancelled
+  priority      String   @default("medium") // high|medium|low
+  material      String   @default("PLA")
+  weightGrams   Float    @default(0)
+  estimatedTime Int      @default(0)   // minutes
+  actualTime    Int?
+  printerId     Int?
+  printer       Printer? @relation(fields: [printerId], references: [id])
+  orderId       Int?
+  order         Order?   @relation(fields: [orderId], references: [id])
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  queueItem     QueueItem?
+}
+
+model QueueItem {
+  id          Int      @id @default(autoincrement())
+  jobId       Int      @unique
+  job         Job      @relation(fields: [jobId], references: [id])
+  printerId   Int?
+  printer     Printer? @relation(fields: [printerId], references: [id])
+  priority    Int      @default(5)   // 1=highest, 10=lowest
+  status      String   @default("queued") // queued|assigned|blocked
+  blockReason String?
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── ORDERS ──────────────────────────────────────────────────
+
+model Order {
+  id               Int      @id @default(autoincrement())
+  orderId          String   @unique   // idempotency key from marketplace
+  marketplaceSource String  @default("manual") // xometry|treatstock|manual
+  externalId       String?  @unique   // marketplace's order ID
+  customerName     String
+  customerEmail    String?
+  items            Int      @default(1)
+  totalValue       Float    @default(0)
+  currency         String   @default("EUR")
+  status           String   @default("incoming")
+  profitScore      Float?
+  notes            String?  @db.Text
+  rawPayload       String?  @db.LongText
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  statusLogs       OrderStatusLog[]
+  jobs             Job[]
+  labels           LabelPrintLog[]
+}
+
+model OrderStatusLog {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  order     Order    @relation(fields: [orderId], references: [id])
+  fromStatus String?
+  toStatus   String
+  actor      String   @default("system") // email or "system"
+  reason     String?
+  createdAt  DateTime @default(now())
+}
+
+// ─── ENERGY ───────────────────────────────────────────────────
+
+model EnergySettings {
+  id               Int      @id @default(1)
+  maxLoadKw        Float    @default(6.0)
+  peakProtection   Boolean  @default(true)
+  warmupStaggering Boolean  @default(true)
+  staggerDelayMin  Int      @default(5)    // minutes between warmups
+  baseLoadKw       Float    @default(1.2)  // lights, HVAC, server
+  updatedAt        DateTime @updatedAt
+}
+
+model EnergyReading {
+  id          Int      @id @default(autoincrement())
+  currentKw   Float
+  maxKw       Float
+  activeCount Int      @default(0)
+  source      String   @default("calculated") // modbus|calculated
+  recordedAt  DateTime @default(now())
+}
+
+model PowerEvent {
+  id          Int      @id @default(autoincrement())
+  type        String   // OVERLOAD_PREVENTED | PEAK_TRIGGERED | STAGGER_APPLIED
+  currentKw   Float
+  limitKw     Float
+  action      String?
+  createdAt   DateTime @default(now())
+}
+
+// ─── PROFITABILITY ────────────────────────────────────────────
+
+model ProfitConfig {
+  id                    Int      @id @default(1)
+  materialCostPerGram   Float    @default(0.025)  // EUR/g
+  energyCostPerKwh      Float    @default(0.28)   // EUR/kWh
+  depreciationPerHour   Float    @default(0.15)   // EUR/h per machine
+  minMarginPercent      Float    @default(20.0)   // minimum profit margin %
+  laborCostPerHour      Float    @default(0.0)    // optional
+  updatedAt             DateTime @updatedAt
+}
+
+// ─── MARKETPLACES ─────────────────────────────────────────────
+
+model MarketplaceIntegration {
+  id              Int      @id @default(autoincrement())
+  name            String   @unique // xometry | treatstock | hubs | craftcloud
+  displayName     String
+  isEnabled       Boolean  @default(false)
+  apiKey          String?
+  apiSecret       String?
+  apiUrl          String?
+  pollIntervalSec Int      @default(60)
+  lastSyncAt      DateTime?
+  status          String   @default("offline") // active|offline|error
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  syncLogs MarketplaceSyncLog[]
+}
+
+model MarketplaceSyncLog {
+  id              Int      @id @default(autoincrement())
+  integrationId   Int
+  integration     MarketplaceIntegration @relation(fields: [integrationId], references: [id])
+  result          String   // success|no_orders|error|auth_fail
+  ordersFound     Int      @default(0)
+  message         String?
+  createdAt       DateTime @default(now())
+}
+
+// ─── LABELS ──────────────────────────────────────────────────
+
+model LabelTemplate {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?  @db.Text
+  zplContent  String   @db.LongText
+  width       String   @default("4")  // inches
+  height      String   @default("6")  // inches
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model LabelPrintLog {
+  id          Int      @id @default(autoincrement())
+  orderId     Int?
+  order       Order?   @relation(fields: [orderId], references: [id])
+  templateId  Int?
+  zplGenerated String   @db.LongText
+  printerIp   String
+  status      String   @default("pending") // pending|printed|failed
+  printedAt   DateTime?
+  errorMsg    String?
+  createdAt   DateTime @default(now())
+}
+
+// ─── ALERTS ──────────────────────────────────────────────────
+
+model AlertRule {
+  id          Int      @id @default(autoincrement())
+  name        String
+  trigger     String   // PRINTER_ERROR | ENERGY_OVERLOAD | JOB_COMPLETE | SMOKE | MATERIAL_LOW
+  severity    String   // critical | warning | info
+  channel     String   // telegram | whatsapp | sms | all
+  isEnabled   Boolean  @default(true)
+  redundancy  Boolean  @default(false)  // send on all channels when true
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  logs AlertLog[]
+}
+
+model AlertLog {
+  id          Int      @id @default(autoincrement())
+  ruleId      Int?
+  rule        AlertRule? @relation(fields: [ruleId], references: [id])
+  channel     String
+  recipient   String?
+  message     String   @db.Text
+  status      String   @default("pending") // sent|failed|pending
+  errorMsg    String?
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// ─── BACKUP ──────────────────────────────────────────────────
+
+model BackupSnapshot {
+  id          Int      @id @default(autoincrement())
+  filename    String
+  filePath    String
+  sizeBytes   Int      @default(0)
+  status      String   @default("completed") // completed|failed|restoring
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+// ─── SECURITY ────────────────────────────────────────────────
+
+model SecuritySettings {
+  id                Int      @id @default(1)
+  ipWhitelistEnabled Boolean @default(false)
+  ipWhitelist        String   @default("[]")  @db.Text
+  sessionTimeoutMin  Int     @default(480)   // 8 hours
+  twoFaEnforced      Boolean @default(false)
+  maxLoginAttempts   Int     @default(5)
+  updatedAt          DateTime @updatedAt
+}
+
+// ─── AUDIT LOG ────────────────────────────────────────────────
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String   // LOGIN | PRINTER_HALT | JOB_ASSIGN | ORDER_REJECT | etc.
+  entity      String?  // Printer | Order | Job | etc.
+  entityId    String?
+  details     String?  @db.Text
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+}
