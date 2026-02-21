@@ -15,7 +15,8 @@ const prisma = new PrismaClient();
 // ─── Socket.io Setup ─────────────────────────────────────────
 const allowedOrigins = [
     'http://localhost:5173',
-    'https://blackcore.kiaantechnology.com'
+    'https://blackcore.kiaantechnology.com',
+    'http://blackcore.kiaantechnology.com',
 ];
 if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
 
